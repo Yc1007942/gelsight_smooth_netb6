@@ -160,7 +160,7 @@ class DualPyramid(nn.Module):
 def simclr_pretrain(backbone, dset):
     dl = DataLoader(dset, batch_size=args.batch_ssl, shuffle=True,
                     num_workers=8, drop_last=True, pin_memory=True)
-    deactivate_requires_grad(backbone)
+    activate_requires_grad(backbone)  # ensure backbone is trainable
 
     proj = nn.Sequential(
         nn.Linear(2304,1024), nn.BatchNorm1d(1024), nn.ReLU(),
@@ -173,9 +173,7 @@ def simclr_pretrain(backbone, dset):
     for ep in range(1, args.epochs_ssl+1):
         for v1,v2 in tqdm(dl, desc=f"SSL {ep}/{args.epochs_ssl}"):
             v1,v2 = v1.to(DEV), v2.to(DEV)
-            with torch.no_grad(), torch.autocast(device_type=DEV.type,
-                                                 enabled=AMP):
-           
+            with torch.autocast(device_type=DEV.type, enabled=AMP):
                  h1, h2 = backbone.fe(v1), backbone.fe(v2)
      
             z1, z2 = proj(h1.float()), proj(h2.float()) 
