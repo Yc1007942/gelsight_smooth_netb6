@@ -140,19 +140,18 @@ class DualPyramid(nn.Module):
         self.fe = efficientnet_b6(weights=EfficientNet_B6_Weights.IMAGENET1K_V1)
         in_dim  = self.fe.classifier[1].in_features
         self.fe.classifier = nn.Identity()
-        self.gap, self.gmp = nn.AdaptiveAvgPool1d(1), nn.AdaptiveMaxPool1d(1)
         self.head = nn.Sequential(
-            nn.Linear(in_dim*2+2, 1024), nn.BatchNorm1d(1024), nn.SiLU(),
+            nn.Linear(in_dim*4+2, 1024), nn.BatchNorm1d(1024), nn.SiLU(),
             nn.Dropout(0.4),
             nn.Linear(1024,512), nn.BatchNorm1d(512), nn.SiLU(),
             nn.Dropout(0.4),
             nn.Linear(512, nc))
     def enc(self,x):                         # (T,3,H,W)
-        f = self.fe(x)
-        return torch.cat([self.gap(f.T), self.gmp(f.T)],1).squeeze(-1)
+        f = self.fe(x)                        # (T,D)
+        return torch.cat([f.mean(0), f.max(0).values])
     def forward(self,sm,bg,depth):
-        z = torch.cat([self.enc(sm).mean(0,keepdim=True),
-                       self.enc(bg).mean(0,keepdim=True),
+        z = torch.cat([self.enc(sm)[None],
+                       self.enc(bg)[None],
                        depth],1)
         return self.head(z)
 
